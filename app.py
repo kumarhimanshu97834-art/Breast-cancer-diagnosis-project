@@ -22,73 +22,158 @@ st.set_page_config(
 )
 
 # ============================================================================
-# CUSTOM CSS STYLING
+# CUSTOM CSS STYLING - DARK & LIGHT MODE COMPATIBLE
 # ============================================================================
 st.markdown(
     """
     <style>
-    /* Main background */
+    /* Root CSS variables for theme support */
+    :root {
+        --text-primary: #2c3e50;
+        --text-secondary: #34495e;
+        --bg-light: #ffffff;
+        --bg-light-alt: #f5f7fa;
+        --border-color: #e0e0e0;
+        --success-bg: #d4edda;
+        --success-text: #155724;
+        --success-border: #28a745;
+        --warning-bg: #fff3cd;
+        --warning-text: #856404;
+        --warning-border: #ffc107;
+        --error-bg: #f8d7da;
+        --error-text: #721c24;
+        --error-border: #dc3545;
+        --info-border: #e74c3c;
+        --primary-blue: #3498db;
+        --primary-blue-dark: #2980b9;
+        --malignant-color: #e74c3c;
+        --benign-color: #27ae60;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --bg-light: #2a2a2a;
+            --bg-light-alt: #1e1e1e;
+            --border-color: #404040;
+            --success-bg: #1e4620;
+            --success-text: #90ee90;
+            --success-border: #52b788;
+            --warning-bg: #4d3d00;
+            --warning-text: #ffd700;
+            --warning-border: #ffa500;
+            --error-bg: #4d1f1f;
+            --error-text: #ff6b6b;
+            --error-border: #ff4444;
+            --info-border: #ff6b6b;
+        }
+    }
+    
+    /* Main container */
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background-color: var(--bg-light-alt);
+        color: var(--text-primary);
     }
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+        background-color: #2c3e50;
+        color: #ecf0f1;
+    }
+    
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] div {
+        color: #ecf0f1 !important;
     }
     
     /* Metric cards */
     [data-testid="metric-container"] {
-        background-color: white;
+        background-color: var(--bg-light);
+        color: var(--text-primary) !important;
         padding: 20px;
         border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #3498db;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        border-left: 4px solid var(--primary-blue);
+    }
+    
+    [data-testid="metric-container"] > div > label {
+        color: var(--text-secondary) !important;
+        font-size: 12px;
+    }
+    
+    [data-testid="metric-container"] > div > div {
+        color: var(--text-primary) !important;
     }
     
     /* Headers */
-    h1, h2, h3 {
-        color: #2c3e50;
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary) !important;
         font-weight: 700;
+    }
+    
+    /* Paragraph text */
+    p, span, div {
+        color: var(--text-primary);
     }
     
     /* Cards/Containers */
     .info-box {
-        background: white;
+        background: var(--bg-light);
+        color: var(--text-primary);
         padding: 20px;
         border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #e74c3c;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        border-left: 4px solid var(--info-border);
+    }
+    
+    .info-box p {
+        color: var(--text-primary) !important;
     }
     
     .success-box {
-        background: #d4edda;
+        background: var(--success-bg);
         padding: 15px;
         border-radius: 8px;
-        border-left: 4px solid #28a745;
-        color: #155724;
+        border-left: 4px solid var(--success-border);
+        color: var(--success-text);
+    }
+    
+    .success-box p, .success-box span {
+        color: var(--success-text) !important;
     }
     
     .warning-box {
-        background: #fff3cd;
+        background: var(--warning-bg);
         padding: 15px;
         border-radius: 8px;
-        border-left: 4px solid #ffc107;
-        color: #856404;
+        border-left: 4px solid var(--warning-border);
+        color: var(--warning-text);
+    }
+    
+    .warning-box p, .warning-box span {
+        color: var(--warning-text) !important;
     }
     
     .error-box {
-        background: #f8d7da;
+        background: var(--error-bg);
         padding: 15px;
         border-radius: 8px;
-        border-left: 4px solid #dc3545;
-        color: #721c24;
+        border-left: 4px solid var(--error-border);
+        color: var(--error-text);
+    }
+    
+    .error-box p, .error-box span {
+        color: var(--error-text) !important;
     }
     
     /* Button styling */
     .stButton > button {
-        background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
-        color: white;
+        background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+        color: white !important;
         border: none;
         padding: 10px 24px;
         border-radius: 8px;
@@ -105,14 +190,85 @@ st.markdown(
     /* Input styling */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
-    .stSelectbox > div > div > select {
+    .stSelectbox > div > div > select,
+    input, select, textarea {
+        background-color: var(--bg-light) !important;
+        color: var(--text-primary) !important;
+        border: 2px solid var(--border-color) !important;
         border-radius: 8px;
-        border: 2px solid #bdc3c7;
+    }
+    
+    .stTextInput > div > div > input::placeholder,
+    .stNumberInput > div > div > input::placeholder {
+        color: var(--text-secondary) !important;
+    }
+    
+    /* Labels and descriptions */
+    .stTextInput > label, 
+    .stNumberInput > label,
+    .stSelectbox > label,
+    label {
+        color: var(--text-primary) !important;
+        font-weight: 600;
     }
     
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] button {
         border-radius: 8px 8px 0 0;
+        color: var(--text-primary) !important;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        color: var(--primary-blue) !important;
+        border-bottom: 3px solid var(--primary-blue) !important;
+    }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        color: var(--text-primary) !important;
+    }
+    
+    [data-testid="stDataFrame"] {
+        background-color: var(--bg-light) !important;
+    }
+    
+    /* Plotly charts - ensure background */
+    .plotly-graph-div {
+        background-color: transparent !important;
+    }
+    
+    /* Alert boxes - improve visibility */
+    .stAlert {
+        color: var(--text-primary) !important;
+    }
+    
+    .stAlert > div {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Markdown text */
+    .stMarkdown {
+        color: var(--text-primary);
+    }
+    
+    /* Horizontal line */
+    hr {
+        border-color: var(--border-color);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background-color: var(--bg-light);
+        color: var(--text-primary) !important;
+    }
+    
+    .streamlit-expanderHeader p {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Column separation */
+    [data-testid="column"] {
+        background-color: transparent;
     }
     </style>
     """,
@@ -185,19 +341,21 @@ def create_prediction_card(diagnosis, confidence):
         bg_color = "#fadbd8"
         icon = "⚠️"
         message = "MALIGNANT"
+        text_color = "#721c24"
     else:  # Benign
         color = "#27ae60"
-        bg_color = "#d5f4e6"
+        bg_color = "#d4edda"
         icon = "✅"
         message = "BENIGN"
+        text_color = "#155724"
     
     st.markdown(
         f"""
         <div style="background-color: {bg_color}; padding: 30px; border-radius: 15px; 
                     text-align: center; border: 3px solid {color}; margin: 20px 0;">
-            <h1 style="color: {color}; margin: 0;">{icon} {message}</h1>
-            <p style="font-size: 18px; color: {color}; margin-top: 10px;">
-                <b>Confidence: {confidence:.2f}%</b>
+            <h1 style="color: {text_color}; margin: 0;">{icon} {message}</h1>
+            <p style="font-size: 18px; color: {text_color}; margin-top: 10px; font-weight: bold;">
+                Confidence: {confidence:.2f}%
             </p>
         </div>
         """,
@@ -212,8 +370,8 @@ st.sidebar.markdown("---")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #ecf0f1;">🔬 CANCER DIAGNOSIS</h2>
-        <p style="color: #bdc3c7; font-size: 12px;">ML-Powered Healthcare</p>
+        <h2 style="color: #ecf0f1; margin: 0;">🔬 CANCER DIAGNOSIS</h2>
+        <p style="color: #ecf0f1; font-size: 12px; margin: 8px 0 0 0;">ML-Powered Healthcare</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -251,7 +409,7 @@ if page == "🏠 Home":
         st.markdown(
             """
             <div class="info-box">
-                <p style="font-size: 16px; line-height: 1.8;">
+                <p style="font-size: 16px; line-height: 1.8; color: var(--text-primary);">
                 This advanced machine learning dashboard helps healthcare professionals 
                 predict breast cancer diagnosis based on cellular characteristics. 
                 Our ensemble models combine the power of multiple algorithms to provide 
@@ -630,9 +788,9 @@ elif page == "🤖 Model Prediction":
                - **Green Box** = BENIGN (Low risk)
                - **Red Box** = MALIGNANT (High risk)
                - **Confidence %** = Model certainty (higher is better)
-            """)
+            """, help="Detailed instructions for using the prediction tool")
         
-        st.info("💡 Enter the patient's cellular measurements to predict diagnosis.")
+        st.info("💡 **Enter the patient's cellular measurements to predict diagnosis.**")
         
         # Get numeric features (excluding id and diagnosis)
         numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
@@ -734,6 +892,7 @@ elif page == "🤖 Model Prediction":
             if diagnosis == 1:  # Malignant
                 st.warning("""
                 ⚠️ **MALIGNANT Diagnosis Predicted**
+                
                 - The model predicts a **malignant** (cancerous) diagnosis
                 - Recommend immediate consultation with an oncologist
                 - Further diagnostic tests should be conducted
@@ -742,6 +901,7 @@ elif page == "🤖 Model Prediction":
             else:  # Benign
                 st.success("""
                 ✅ **BENIGN Diagnosis Predicted**
+                
                 - The model predicts a **benign** (non-cancerous) diagnosis
                 - Lower risk of cancer
                 - Regular follow-up monitoring is still recommended
@@ -769,7 +929,7 @@ elif page == "🤖 Model Prediction":
                     
                     pred_df = pd.DataFrame(all_predictions).T
                     pred_df.columns = ["Prediction", "Confidence (%)"]
-                    st.dataframe(pred_df, use_container_width=True)
+                    st.dataframe(pred_df, use_container_width=True, hide_index=False)
             
             except Exception as e:
                 st.warning(f"⚠️ Could not display all model predictions: {str(e)}")
