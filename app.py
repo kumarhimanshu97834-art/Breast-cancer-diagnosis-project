@@ -231,6 +231,29 @@ def load_data():
 
     try:
         data = pd.read_csv("data.csv")
+
+        # Remove empty unnamed columns and keep only the relevant dataset fields
+        data = data.loc[:, ~data.columns.str.contains("^Unnamed")]
+
+        # Clean diagnosis column
+        data["diagnosis"] = (
+            data["diagnosis"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+
+        # Validate diagnosis values
+        valid_values = {"B", "M"}
+
+        invalid_values = set(data["diagnosis"].unique()) - valid_values
+
+        if invalid_values:
+            st.error(
+                f"❌ Unexpected diagnosis values found: {invalid_values}"
+            )
+            return None
+
         return data
 
     except FileNotFoundError:
@@ -244,6 +267,7 @@ def load_data():
         st.error(f"❌ Error loading dataset: {e}")
         return None
 
+   
 
 # ============================================================================
 # LOAD MODELS
@@ -359,6 +383,24 @@ def create_prediction_card(diagnosis, confidence):
         """,
         unsafe_allow_html=True,
     )
+
+
+def calculate_confidence(model, feature_array):
+    """Compute a confidence score for binary classifiers."""
+    try:
+        if hasattr(model, "predict_proba"):
+            probabilities = model.predict_proba(feature_array)[0]
+            return max(probabilities) * 100
+
+        if hasattr(model, "decision_function"):
+            score = model.decision_function(feature_array)[0]
+            probability = 1 / (1 + np.exp(-score))
+            return max(probability, 1 - probability) * 100
+
+    except Exception:
+        pass
+
+    return np.nan
 
 
 # ============================================================================
@@ -914,63 +956,118 @@ elif page == "📉 Visualizations":
         # SCATTER
         # --------------------------------------------------------------------
 
-        with tab3:
+   
+    with tab3:
 
-            st.subheader(
-                "Feature Comparison - Scatter Plot"
-            )
+     st.subheader("Feature Comparison - Scatter Plot")
 
-            col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-            with col1:
+    with col1:
+        x_feature = st.selectbox(
+            "Select X-axis feature:",
+            FEATURE_COLUMNS,
+            key="x_scatter",
+        )
 
-                x_feature = st.selectbox(
-                    "Select X-axis feature:",
-                    FEATURE_COLUMNS,
-                    key="x_scatter",
-                )
+    with col2:
+        y_feature = st.selectbox(
+            "Select Y-axis feature:",
+            FEATURE_COLUMNS,
+            key="y_scatter",
+        )
 
-            with col2:
+    # Make a copy
+    scatter_data = data.copy()
 
-                y_feature = st.selectbox(
-                    "Select Y-axis feature:",
-                    FEATURE_COLUMNS,
-                    key="y_scatter",
-                )
+    # Clean diagnosis column
+    scatter_data["diagnosis"] = (
+        scatter_data["diagnosis"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
 
-            fig = px.scatter(
-                data,
-                x=x_feature,
-                y=y_feature,
-                color="diagnosis",
-                color_discrete_map={
-                    "M": "#e74c3c",
-                    "B": "#27ae60",
-                },
-                title=f"{x_feature} vs {y_feature}",
-                labels={
-                    "diagnosis": "Diagnosis"
-                },
-                height=500,
-            )
+    # Benign data
+    benign_data = scatter_data[
+        scatter_data["diagnosis"] == "B"
+    ]
 
-            fig.update_traces(
+    # Malignant data
+    malignant_data = scatter_data[
+        scatter_data["diagnosis"] == "M"
+    ]
+
+    # Create Plotly figure
+    fig = go.Figure()
+
+    # ---------------- BENIGN ----------------
+
+    if not benign_data.empty:
+
+        fig.add_trace(
+            go.Scatter(
+                x=benign_data[x_feature],
+                y=benign_data[y_feature],
+                mode="markers",
+                name="Benign",
                 marker=dict(
                     size=8,
-                    opacity=0.7
-                )
+                    color="#27ae60",
+                    opacity=0.7,
+                ),
+                hovertemplate=(
+                    f"{x_feature}: %{{x}}<br>"
+                    f"{y_feature}: %{{y}}<br>"
+                    "Diagnosis: Benign"
+                    "<extra></extra>"
+                ),
             )
+        )
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True
+    # ---------------- MALIGNANT ----------------
+
+    if not malignant_data.empty:
+
+        fig.add_trace(
+            go.Scatter(
+                x=malignant_data[x_feature],
+                y=malignant_data[y_feature],
+                mode="markers",
+                name="Malignant",
+                marker=dict(
+                    size=8,
+                    color="#e74c3c",
+                    opacity=0.7,
+                ),
+                hovertemplate=(
+                    f"{x_feature}: %{{x}}<br>"
+                    f"{y_feature}: %{{y}}<br>"
+                    "Diagnosis: Malignant"
+                    "<extra></extra>"
+                ),
             )
+        )
+
+    # Layout
+    fig.update_layout(
+        title=f"{x_feature} vs {y_feature}",
+        xaxis_title=x_feature,
+        yaxis_title=y_feature,
+        height=500,
+        hovermode="closest",
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+    )
 
         # --------------------------------------------------------------------
         # FEATURE COMPARISON
         # --------------------------------------------------------------------
 
-        with tab4:
+    with tab4:
 
             st.subheader(
                 "Top Features - Mean Comparison"
@@ -1252,25 +1349,12 @@ elif page == "🤖 Model Prediction":
                     )
 
                     # Confidence
-                    if hasattr(
+                    confidence = calculate_confidence(
                         best_model,
-                        "predict_proba"
-                    ):
+                        feature_scaled,
+                    )
 
-                        probabilities = (
-                            best_model
-                            .predict_proba(
-                                feature_scaled
-                            )[0]
-                        )
-
-                        confidence = (
-                            max(probabilities)
-                            * 100
-                        )
-
-                    else:
-
+                    if np.isnan(confidence):
                         confidence = 85.0
 
                     # Save result
@@ -1409,26 +1493,10 @@ elif page == "🤖 Model Prediction":
                         )[0]
                     )
 
-                    if hasattr(
+                    model_confidence = calculate_confidence(
                         model,
-                        "predict_proba"
-                    ):
-
-                        probabilities = (
-                            model
-                            .predict_proba(
-                                feature_scaled
-                            )[0]
-                        )
-
-                        model_confidence = (
-                            max(probabilities)
-                            * 100
-                        )
-
-                    else:
-
-                        model_confidence = np.nan
+                        feature_scaled,
+                    )
 
                     all_predictions[
                         model_name
