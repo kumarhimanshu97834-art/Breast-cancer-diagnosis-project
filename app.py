@@ -1,19 +1,19 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
-import pickle
-import os
-from pathlib import Path
+import joblib
 import warnings
 
 warnings.filterwarnings("ignore")
 
+
 # ============================================================================
 # PAGE CONFIGURATION
 # ============================================================================
+
 st.set_page_config(
     page_title="🔬 Breast Cancer Diagnosis",
     page_icon="🔬",
@@ -21,13 +21,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
 # ============================================================================
-# CUSTOM CSS STYLING - DARK & LIGHT MODE COMPATIBLE
+# CUSTOM CSS
 # ============================================================================
+
 st.markdown(
     """
     <style>
-    /* Root CSS variables for theme support */
+
     :root {
         --text-primary: #2c3e50;
         --text-secondary: #34495e;
@@ -43,13 +45,10 @@ st.markdown(
         --error-bg: #f8d7da;
         --error-text: #721c24;
         --error-border: #dc3545;
-        --info-border: #e74c3c;
         --primary-blue: #3498db;
         --primary-blue-dark: #2980b9;
-        --malignant-color: #e74c3c;
-        --benign-color: #27ae60;
     }
-    
+
     @media (prefers-color-scheme: dark) {
         :root {
             --text-primary: #e0e0e0;
@@ -66,31 +65,27 @@ st.markdown(
             --error-bg: #4d1f1f;
             --error-text: #ff6b6b;
             --error-border: #ff4444;
-            --info-border: #ff6b6b;
         }
     }
-    
-    /* Main container */
+
     [data-testid="stAppViewContainer"] {
         background-color: var(--bg-light-alt);
         color: var(--text-primary);
     }
-    
-    /* Sidebar styling */
+
     [data-testid="stSidebar"] {
         background-color: #2c3e50;
-        color: #ecf0f1;
     }
-    
+
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3,
     [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] div {
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] label {
         color: #ecf0f1 !important;
     }
-    
-    /* Metric cards */
+
     [data-testid="metric-container"] {
         background-color: var(--bg-light);
         color: var(--text-primary) !important;
@@ -99,41 +94,28 @@ st.markdown(
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         border-left: 4px solid var(--primary-blue);
     }
-    
-    [data-testid="metric-container"] > div > label {
+
+    [data-testid="metric-container"] label {
         color: var(--text-secondary) !important;
-        font-size: 12px;
     }
-    
-    [data-testid="metric-container"] > div > div {
-        color: var(--text-primary) !important;
-    }
-    
-    /* Headers */
+
     h1, h2, h3, h4, h5, h6 {
         color: var(--text-primary) !important;
-        font-weight: 700;
     }
-    
-    /* Paragraph text */
-    p, span, div {
+
+    p, span {
         color: var(--text-primary);
     }
-    
-    /* Cards/Containers */
+
     .info-box {
         background: var(--bg-light);
         color: var(--text-primary);
         padding: 20px;
         border-radius: 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-        border-left: 4px solid var(--info-border);
+        border-left: 4px solid #e74c3c;
     }
-    
-    .info-box p {
-        color: var(--text-primary) !important;
-    }
-    
+
     .success-box {
         background: var(--success-bg);
         padding: 15px;
@@ -141,11 +123,7 @@ st.markdown(
         border-left: 4px solid var(--success-border);
         color: var(--success-text);
     }
-    
-    .success-box p, .success-box span {
-        color: var(--success-text) !important;
-    }
-    
+
     .warning-box {
         background: var(--warning-bg);
         padding: 15px;
@@ -153,210 +131,230 @@ st.markdown(
         border-left: 4px solid var(--warning-border);
         color: var(--warning-text);
     }
-    
-    .warning-box p, .warning-box span {
-        color: var(--warning-text) !important;
-    }
-    
-    .error-box {
-        background: var(--error-bg);
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 4px solid var(--error-border);
-        color: var(--error-text);
-    }
-    
-    .error-box p, .error-box span {
-        color: var(--error-text) !important;
-    }
-    
-    /* Button styling */
+
     .stButton > button {
-        background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+        background: linear-gradient(
+            90deg,
+            var(--primary-blue) 0%,
+            var(--primary-blue-dark) 100%
+        );
         color: white !important;
         border: none;
         padding: 10px 24px;
         border-radius: 8px;
         font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
     }
-    
+
     .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 12px rgba(52, 152, 219, 0.4);
     }
-    
-    /* Input styling */
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input,
-    .stSelectbox > div > div > select,
+
     input, select, textarea {
         background-color: var(--bg-light) !important;
         color: var(--text-primary) !important;
         border: 2px solid var(--border-color) !important;
         border-radius: 8px;
     }
-    
-    .stTextInput > div > div > input::placeholder,
-    .stNumberInput > div > div > input::placeholder {
-        color: var(--text-secondary) !important;
-    }
-    
-    /* Labels and descriptions */
-    .stTextInput > label, 
-    .stNumberInput > label,
-    .stSelectbox > label,
+
     label {
         color: var(--text-primary) !important;
         font-weight: 600;
     }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] button {
-        border-radius: 8px 8px 0 0;
-        color: var(--text-primary) !important;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        color: var(--primary-blue) !important;
-        border-bottom: 3px solid var(--primary-blue) !important;
-    }
-    
-    /* Dataframe styling */
-    .stDataFrame {
-        color: var(--text-primary) !important;
-    }
-    
-    [data-testid="stDataFrame"] {
-        background-color: var(--bg-light) !important;
-    }
-    
-    /* Plotly charts - ensure background */
-    .plotly-graph-div {
-        background-color: transparent !important;
-    }
-    
-    /* Alert boxes - improve visibility */
-    .stAlert {
-        color: var(--text-primary) !important;
-    }
-    
-    .stAlert > div {
-        color: var(--text-primary) !important;
-    }
-    
-    /* Markdown text */
-    .stMarkdown {
-        color: var(--text-primary);
-    }
-    
-    /* Horizontal line */
+
     hr {
         border-color: var(--border-color);
     }
-    
-    /* Expander styling */
-    .streamlit-expanderHeader {
-        background-color: var(--bg-light);
-        color: var(--text-primary) !important;
-    }
-    
-    .streamlit-expanderHeader p {
-        color: var(--text-primary) !important;
-    }
-    
-    /* Column separation */
-    [data-testid="column"] {
-        background-color: transparent;
-    }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+
 # ============================================================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE
 # ============================================================================
-if "data_loaded" not in st.session_state:
-    st.session_state.data_loaded = False
-if "model_loaded" not in st.session_state:
-    st.session_state.model_loaded = False
+
 if "predictions" not in st.session_state:
     st.session_state.predictions = {}
 
+if "sample_loaded" not in st.session_state:
+    st.session_state.sample_loaded = False
+
+
 # ============================================================================
-# UTILITY FUNCTIONS
+# CONSTANTS
 # ============================================================================
 
+FEATURE_COLUMNS = [
+    "radius_mean",
+    "texture_mean",
+    "perimeter_mean",
+    "area_mean",
+    "smoothness_mean",
+    "compactness_mean",
+    "concavity_mean",
+    "concave points_mean",
+    "symmetry_mean",
+    "fractal_dimension_mean",
+    "radius_se",
+    "texture_se",
+    "perimeter_se",
+    "area_se",
+    "smoothness_se",
+    "compactness_se",
+    "concavity_se",
+    "concave points_se",
+    "symmetry_se",
+    "fractal_dimension_se",
+    "radius_worst",
+    "texture_worst",
+    "perimeter_worst",
+    "area_worst",
+    "smoothness_worst",
+    "compactness_worst",
+    "concavity_worst",
+    "concave points_worst",
+    "symmetry_worst",
+    "fractal_dimension_worst",
+]
+
+
+# ============================================================================
+# LOAD DATA
+# ============================================================================
 
 @st.cache_data
 def load_data():
-    """Load breast cancer dataset"""
+    """Load the breast cancer dataset."""
+
     try:
         data = pd.read_csv("data.csv")
-        st.session_state.data_loaded = True
         return data
+
     except FileNotFoundError:
-        st.error("❌ Data file not found. Please ensure 'data.csv' is in the project folder.")
+        st.error(
+            "❌ data.csv not found. "
+            "Please make sure data.csv is present in the project folder."
+        )
+        return None
+
+    except Exception as e:
+        st.error(f"❌ Error loading dataset: {e}")
         return None
 
 
+# ============================================================================
+# LOAD MODELS
+# ============================================================================
+
 @st.cache_resource
 def load_models():
-    """Load trained models"""
+    """Load all trained models saved using Joblib."""
+
     models = {}
-    model_names = ["random_forest.pkl", "svm.pkl", "logistic_regression.pkl", "xgboost.pkl"]
-    
-    for model_name in model_names:
+
+    model_files = {
+        "svm": "svm_model.joblib",
+        "random_forest": "random_forest_model.joblib",
+        "logistic_regression": "logistic_regression_model.joblib",
+        "xgboost": "xgboost_model.joblib",
+    }
+
+    for model_name, file_name in model_files.items():
+
         try:
-            with open(model_name, "rb") as f:
-                models[model_name.replace(".pkl", "")] = pickle.load(f)
+            models[model_name] = joblib.load(file_name)
+
         except FileNotFoundError:
-            st.warning(f"⚠️ Model {model_name} not found. Please run train_model.py first.")
-    
-    if models:
-        st.session_state.model_loaded = True
+            pass
+
+        except Exception as e:
+            st.warning(
+                f"⚠️ Could not load {file_name}: {e}"
+            )
+
     return models
 
 
+# ============================================================================
+# LOAD PREPROCESSORS
+# ============================================================================
+
 @st.cache_resource
 def load_preprocessors():
-    """Load data preprocessors (scaler, label encoder)"""
-    try:
-        with open("scaler.pkl", "rb") as f:
-            scaler = pickle.load(f)
-        with open("label_encoder.pkl", "rb") as f:
-            label_encoder = pickle.load(f)
-        return scaler, label_encoder
-    except FileNotFoundError:
-        st.warning("⚠️ Preprocessors not found. Please run train_model.py first.")
-        return None, None
+    """Load imputer, scaler and label encoder."""
 
+    try:
+        scaler = joblib.load("scaler.joblib")
+        imputer = joblib.load("imputer.joblib")
+        label_encoder = joblib.load("label_encoder.joblib")
+
+        return scaler, imputer, label_encoder
+
+    except FileNotFoundError as e:
+        st.error(
+            f"❌ Preprocessor file not found: {e}"
+        )
+        return None, None, None
+
+    except Exception as e:
+        st.error(
+            f"❌ Error loading preprocessors: {e}"
+        )
+        return None, None, None
+
+
+# ============================================================================
+# PREDICTION CARD
+# ============================================================================
 
 def create_prediction_card(diagnosis, confidence):
-    """Create a styled prediction result card"""
-    if diagnosis == 1:  # Malignant
+
+    if diagnosis == 1:
+
         color = "#e74c3c"
         bg_color = "#fadbd8"
         icon = "⚠️"
         message = "MALIGNANT"
         text_color = "#721c24"
-    else:  # Benign
+
+    else:
+
         color = "#27ae60"
         bg_color = "#d4edda"
         icon = "✅"
         message = "BENIGN"
         text_color = "#155724"
-    
+
     st.markdown(
         f"""
-        <div style="background-color: {bg_color}; padding: 30px; border-radius: 15px; 
-                    text-align: center; border: 3px solid {color}; margin: 20px 0;">
-            <h1 style="color: {text_color}; margin: 0;">{icon} {message}</h1>
-            <p style="font-size: 18px; color: {text_color}; margin-top: 10px; font-weight: bold;">
+        <div style="
+            background-color: {bg_color};
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid {color};
+            margin: 20px 0;
+        ">
+
+            <h1 style="
+                color: {text_color};
+                margin: 0;
+            ">
+                {icon} {message}
+            </h1>
+
+            <p style="
+                font-size: 18px;
+                color: {text_color};
+                margin-top: 10px;
+                font-weight: bold;
+            ">
                 Confidence: {confidence:.2f}%
             </p>
+
         </div>
         """,
         unsafe_allow_html=True,
@@ -364,23 +362,29 @@ def create_prediction_card(diagnosis, confidence):
 
 
 # ============================================================================
-# SIDEBAR NAVIGATION
+# SIDEBAR
 # ============================================================================
+
 st.sidebar.markdown("---")
+
 st.sidebar.markdown(
     """
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #ecf0f1; margin: 0;">🔬 CANCER DIAGNOSIS</h2>
-        <p style="color: #ecf0f1; font-size: 12px; margin: 8px 0 0 0;">ML-Powered Healthcare</p>
-    </div>
+    <h2 style="color:white !important;">
+        🔬 CANCER DIAGNOSIS
+    </h2>
+
+    <p style="color:white !important;">
+        ML-Powered Healthcare
+    </p>
     """,
     unsafe_allow_html=True,
 )
+
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "📑 Navigation Menu",
-    options=[
+    [
         "🏠 Home",
         "📊 Dataset Overview",
         "📈 Data Analysis",
@@ -393,270 +397,472 @@ page = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
+
 # ============================================================================
-# PAGE: HOME
+# HOME PAGE
 # ============================================================================
+
 if page == "🏠 Home":
+
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
+
         st.markdown(
             """
             # 🔬 Breast Cancer Diagnosis
             ## AI-Powered Prediction System
             """
         )
+
         st.markdown(
             """
             <div class="info-box">
-                <p style="font-size: 16px; line-height: 1.8; color: var(--text-primary);">
-                This advanced machine learning dashboard helps healthcare professionals 
-                predict breast cancer diagnosis based on cellular characteristics. 
-                Our ensemble models combine the power of multiple algorithms to provide 
-                accurate, reliable predictions.
-                </p>
+
+            <p style="font-size:16px; line-height:1.8;">
+
+            This machine learning dashboard predicts breast cancer
+            diagnosis using cellular characteristics from the
+            Breast Cancer Wisconsin Diagnostic dataset.
+
+            Multiple machine learning models are trained and evaluated
+            to provide classification predictions.
+
+            </p>
+
             </div>
             """,
             unsafe_allow_html=True,
         )
-    
+
     with col2:
+
         st.markdown(
             """
             ### 🔍 Key Features
-            
-            **✓ Multi-Model Ensemble**
-            - 4 Advanced ML algorithms
-            - 97%+ Accuracy
-            
+
+            **✓ Multiple ML Models**
+
+            - Support Vector Machine
+            - Random Forest
+            - Logistic Regression
+            - XGBoost
+
             **✓ Real-time Predictions**
-            - Instant diagnosis predictions
-            - Confidence scoring
-            
+
+            - Instant prediction
+            - Confidence score
+
             **✓ Data Visualization**
+
             - Interactive charts
-            - Statistical analysis
-            
+            - Correlation analysis
+            - Feature comparison
+
             **✓ User-Friendly Interface**
-            - Easy navigation
-            - Professional design
+
+            - Simple navigation
+            - Interactive inputs
             """
         )
-    
+
     st.markdown("---")
-    st.markdown("### 📊 Key Metrics")
-    
-    # Load data for metrics
+
+    st.markdown("### 📊 Dataset Metrics")
+
     data = load_data()
+
     if data is not None:
+
         total_samples = len(data)
-        malignant = (data["diagnosis"] == "M").sum()
-        benign = (data["diagnosis"] == "B").sum()
-        accuracy = 97.5  # Placeholder
-        
+
+        malignant = (
+            data["diagnosis"] == "M"
+        ).sum()
+
+        benign = (
+            data["diagnosis"] == "B"
+        ).sum()
+
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
-            st.metric("📋 Total Samples", f"{total_samples:,}", "Patient Records")
-        
+            st.metric(
+                "📋 Total Samples",
+                f"{total_samples:,}"
+            )
+
         with col2:
-            st.metric("⚠️ Malignant Cases", f"{malignant}", f"{(malignant/total_samples)*100:.1f}%")
-        
+            st.metric(
+                "⚠️ Malignant Cases",
+                f"{malignant}",
+                f"{(malignant / total_samples) * 100:.1f}%"
+            )
+
         with col3:
-            st.metric("✅ Benign Cases", f"{benign}", f"{(benign/total_samples)*100:.1f}%")
-        
+            st.metric(
+                "✅ Benign Cases",
+                f"{benign}",
+                f"{(benign / total_samples) * 100:.1f}%"
+            )
+
         with col4:
-            st.metric("🎯 Model Accuracy", f"{accuracy:.1f}%", "Average")
-    
+            st.metric(
+                "🔢 Features",
+                "30"
+            )
+
     st.markdown("---")
+
     st.markdown(
         """
         ### 🚀 Getting Started
-        
-        1. **Dataset Overview** - Explore the breast cancer dataset structure
-        2. **Data Analysis** - Analyze statistical summaries and distributions
-        3. **Visualizations** - Interactive charts and correlation analysis
-        4. **Model Prediction** - Make predictions for new patient data
-        5. **About Project** - Learn more about the project and models
+
+        1. **Dataset Overview** - Explore the dataset
+        2. **Data Analysis** - Analyze statistical information
+        3. **Visualizations** - Explore interactive charts
+        4. **Model Prediction** - Enter measurements and predict
+        5. **About Project** - View project details
         """
     )
 
-# ============================================================================
-# PAGE: DATASET OVERVIEW
-# ============================================================================
-elif page == "📊 Dataset Overview":
-    st.title("📊 Dataset Overview")
-    st.markdown("---")
-    
-    data = load_data()
-    
-    if data is not None:
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("📏 Shape (Rows)", data.shape[0])
-        with col2:
-            st.metric("🔢 Features", data.shape[1] - 1)
-        with col3:
-            st.metric("🎯 Target Classes", data["diagnosis"].nunique())
-        with col4:
-            st.metric("❌ Missing Values", data.isnull().sum().sum())
-        
-        st.markdown("---")
-        
-        # Tabs for different sections
-        tab1, tab2, tab3, tab4 = st.tabs(["📋 First 10 Rows", "📊 Data Types", "📉 Missing Values", "📈 Statistics"])
-        
-        with tab1:
-            st.subheader("First 10 Rows")
-            st.dataframe(data.head(10), use_container_width=True)
-        
-        with tab2:
-            st.subheader("Data Types")
-            dtype_info = pd.DataFrame({
-                "Column": data.columns,
-                "Data Type": data.dtypes,
-                "Non-Null Count": data.notna().sum(),
-            })
-            st.dataframe(dtype_info, use_container_width=True)
-        
-        with tab3:
-            st.subheader("Missing Values")
-            missing_data = pd.DataFrame({
-                "Column": data.columns,
-                "Missing Count": data.isnull().sum(),
-                "Missing %": (data.isnull().sum() / len(data)) * 100,
-            })
-            missing_data = missing_data[missing_data["Missing Count"] > 0]
-            
-            if len(missing_data) == 0:
-                st.success("✅ No missing values found!")
-            else:
-                st.dataframe(missing_data, use_container_width=True)
-        
-        with tab4:
-            st.subheader("Statistical Summary")
-            st.dataframe(data.describe(), use_container_width=True)
 
 # ============================================================================
-# PAGE: DATA ANALYSIS
+# DATASET OVERVIEW
 # ============================================================================
+
+elif page == "📊 Dataset Overview":
+
+    st.title("📊 Dataset Overview")
+    st.markdown("---")
+
+    data = load_data()
+
+    if data is not None:
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "📏 Rows",
+                data.shape[0]
+            )
+
+        with col2:
+            st.metric(
+                "🔢 Features",
+                len(FEATURE_COLUMNS)
+            )
+
+        with col3:
+            st.metric(
+                "🎯 Target Classes",
+                data["diagnosis"].nunique()
+            )
+
+        with col4:
+            st.metric(
+                "❌ Missing Values",
+                data.isnull().sum().sum()
+            )
+
+        st.markdown("---")
+
+        tab1, tab2, tab3, tab4 = st.tabs(
+            [
+                "📋 First 10 Rows",
+                "📊 Data Types",
+                "📉 Missing Values",
+                "📈 Statistics",
+            ]
+        )
+
+        with tab1:
+
+            st.subheader("First 10 Rows")
+
+            st.dataframe(
+                data.head(10),
+                use_container_width=True
+            )
+
+        with tab2:
+
+            st.subheader("Data Types")
+
+            dtype_info = pd.DataFrame(
+                {
+                    "Column": data.columns,
+                    "Data Type": data.dtypes.astype(str),
+                    "Non-Null Count": data.notna().sum(),
+                }
+            )
+
+            st.dataframe(
+                dtype_info,
+                use_container_width=True
+            )
+
+        with tab3:
+
+            st.subheader("Missing Values")
+
+            missing_data = pd.DataFrame(
+                {
+                    "Column": data.columns,
+                    "Missing Count": data.isnull().sum(),
+                    "Missing %":
+                        (data.isnull().sum() / len(data)) * 100,
+                }
+            )
+
+            missing_data = missing_data[
+                missing_data["Missing Count"] > 0
+            ]
+
+            if len(missing_data) == 0:
+
+                st.success(
+                    "✅ No missing values found!"
+                )
+
+            else:
+
+                st.dataframe(
+                    missing_data,
+                    use_container_width=True
+                )
+
+        with tab4:
+
+            st.subheader("Statistical Summary")
+
+            st.dataframe(
+                data.describe(),
+                use_container_width=True
+            )
+
+
+# ============================================================================
+# DATA ANALYSIS
+# ============================================================================
+
 elif page == "📈 Data Analysis":
+
     st.title("📈 Data Analysis")
     st.markdown("---")
-    
+
     data = load_data()
-    
+
     if data is not None:
-        # Class Distribution
-        st.subheader("🎯 Target Class Distribution")
+
+        st.subheader(
+            "🎯 Target Class Distribution"
+        )
+
         col1, col2 = st.columns([2, 1])
-        
+
+        class_counts = data["diagnosis"].value_counts()
+
         with col1:
-            class_counts = data["diagnosis"].value_counts()
-            fig = go.Figure(data=[
+
+            fig = go.Figure()
+
+            fig.add_trace(
                 go.Bar(
-                    x=["Malignant", "Benign"] if class_counts.index[0] == "M" else ["Benign", "Malignant"],
-                    y=class_counts.values,
+                    x=["Benign", "Malignant"],
+                    y=[
+                        class_counts.get("B", 0),
+                        class_counts.get("M", 0),
+                    ],
                     marker=dict(
-                        color=["#e74c3c", "#27ae60"],
-                        line=dict(color="#2c3e50", width=2),
+                        color=["#27ae60", "#e74c3c"]
                     ),
-                    text=class_counts.values,
+                    text=[
+                        class_counts.get("B", 0),
+                        class_counts.get("M", 0),
+                    ],
                     textposition="auto",
                 )
-            ])
+            )
+
             fig.update_layout(
                 title="Diagnosis Distribution",
-                xaxis_title="Diagnosis Type",
+                xaxis_title="Diagnosis",
                 yaxis_title="Count",
                 height=400,
                 showlegend=False,
             )
-            st.plotly_chart(fig, use_container_width=True)
-        
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
         with col2:
-            st.metric("Malignant %", f"{(data['diagnosis'].value_counts()['M']/len(data)*100):.1f}%")
-            st.metric("Benign %", f"{(data['diagnosis'].value_counts()['B']/len(data)*100):.1f}%")
-        
+
+            st.metric(
+                "Malignant %",
+                f"{(class_counts.get('M', 0) / len(data)) * 100:.1f}%"
+            )
+
+            st.metric(
+                "Benign %",
+                f"{(class_counts.get('B', 0) / len(data)) * 100:.1f}%"
+            )
+
         st.markdown("---")
-        
-        # Statistical Summary by Class
-        st.subheader("📊 Statistical Summary by Diagnosis")
-        stat_summary = data.groupby("diagnosis").describe().T
-        st.dataframe(stat_summary, use_container_width=True)
-        
+
+        st.subheader(
+            "📊 Statistical Summary by Diagnosis"
+        )
+
+        stat_data = data[
+            FEATURE_COLUMNS + ["diagnosis"]
+        ]
+
+        stat_summary = (
+            stat_data
+            .groupby("diagnosis")
+            .describe()
+            .T
+        )
+
+        st.dataframe(
+            stat_summary,
+            use_container_width=True
+        )
+
         st.markdown("---")
-        
-        # Interactive Filters
-        st.subheader("🔍 Interactive Data Filters")
-        
-        numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
-        numeric_cols = [col for col in numeric_cols if col != "id"]
-        
+
+        st.subheader(
+            "🔍 Interactive Data Filters"
+        )
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            selected_feature = st.selectbox("Select a feature:", numeric_cols)
-        
+
+            selected_feature = st.selectbox(
+                "Select a feature:",
+                FEATURE_COLUMNS
+            )
+
         with col2:
+
+            feature_min = float(
+                data[selected_feature].min()
+            )
+
+            feature_max = float(
+                data[selected_feature].max()
+            )
+
+            feature_mean = float(
+                data[selected_feature].mean()
+            )
+
             feature_range = st.slider(
                 f"Filter {selected_feature}",
-                float(data[selected_feature].min()),
-                float(data[selected_feature].max()),
-                (float(data[selected_feature].min()), float(data[selected_feature].max())),
+                min_value=feature_min,
+                max_value=feature_max,
+                value=(feature_min, feature_max),
             )
-        
-        # Apply filters
+
         filtered_data = data[
-            (data[selected_feature] >= feature_range[0]) & 
+            (data[selected_feature] >= feature_range[0])
+            &
             (data[selected_feature] <= feature_range[1])
         ]
-        
-        st.success(f"✅ Showing {len(filtered_data)} records out of {len(data)}")
-        st.dataframe(filtered_data, use_container_width=True)
+
+        st.success(
+            f"✅ Showing {len(filtered_data)} records "
+            f"out of {len(data)}"
+        )
+
+        st.dataframe(
+            filtered_data,
+            use_container_width=True
+        )
+
 
 # ============================================================================
-# PAGE: VISUALIZATIONS
+# VISUALIZATIONS
 # ============================================================================
+
 elif page == "📉 Visualizations":
+
     st.title("📉 Visualizations")
     st.markdown("---")
-    
+
     data = load_data()
-    
+
     if data is not None:
-        # Get numeric columns for visualization
-        numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
-        numeric_cols = [col for col in numeric_cols if col != "id"]
-        
+
         tab1, tab2, tab3, tab4 = st.tabs(
-            ["📊 Feature Histograms", "🔗 Correlation Heatmap", "🔵 Scatter Plot", "📈 Feature Comparison"]
+            [
+                "📊 Feature Histograms",
+                "🔗 Correlation Heatmap",
+                "🔵 Scatter Plot",
+                "📈 Feature Comparison",
+            ]
         )
-        
-        # Tab 1: Feature Histograms
+
+        # --------------------------------------------------------------------
+        # HISTOGRAM
+        # --------------------------------------------------------------------
+
         with tab1:
-            st.subheader("Feature Distribution - Histograms")
-            
+
+            st.subheader(
+                "Feature Distribution"
+            )
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                selected_feature = st.selectbox("Select feature to visualize:", numeric_cols)
-            
+
+                selected_feature = st.selectbox(
+                    "Select feature:",
+                    FEATURE_COLUMNS,
+                    key="hist_feature",
+                )
+
             with col2:
-                bins = st.slider("Number of bins:", 10, 100, 30)
-            
+
+                bins = st.slider(
+                    "Number of bins:",
+                    10,
+                    100,
+                    30,
+                )
+
             fig = go.Figure()
-            
-            for diagnosis_type in ["M", "B"]:
-                fig.add_trace(go.Histogram(
-                    x=data[data["diagnosis"] == diagnosis_type][selected_feature],
-                    name="Malignant" if diagnosis_type == "M" else "Benign",
+
+            fig.add_trace(
+                go.Histogram(
+                    x=data[
+                        data["diagnosis"] == "M"
+                    ][selected_feature],
+                    name="Malignant",
                     opacity=0.7,
                     nbinsx=bins,
-                    marker=dict(color="#e74c3c" if diagnosis_type == "M" else "#27ae60"),
-                ))
-            
+                    marker_color="#e74c3c",
+                )
+            )
+
+            fig.add_trace(
+                go.Histogram(
+                    x=data[
+                        data["diagnosis"] == "B"
+                    ][selected_feature],
+                    name="Benign",
+                    opacity=0.7,
+                    nbinsx=bins,
+                    marker_color="#27ae60",
+                )
+            )
+
             fig.update_layout(
                 title=f"Distribution of {selected_feature}",
                 xaxis_title=selected_feature,
@@ -664,371 +870,760 @@ elif page == "📉 Visualizations":
                 height=500,
                 barmode="overlay",
             )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Tab 2: Correlation Heatmap
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        # --------------------------------------------------------------------
+        # CORRELATION
+        # --------------------------------------------------------------------
+
         with tab2:
-            st.subheader("Feature Correlation Matrix")
-            
-            # Calculate correlation
-            correlation = data[numeric_cols].corr()
-            
-            # Create heatmap
-            fig = go.Figure(data=go.Heatmap(
-                z=correlation.values,
-                x=correlation.columns,
-                y=correlation.columns,
-                colorscale="RdBu",
-                zmid=0,
-            ))
-            
+
+            st.subheader(
+                "Feature Correlation Matrix"
+            )
+
+            correlation = data[
+                FEATURE_COLUMNS
+            ].corr()
+
+            fig = go.Figure(
+                data=go.Heatmap(
+                    z=correlation.values,
+                    x=correlation.columns,
+                    y=correlation.columns,
+                    colorscale="RdBu",
+                    zmid=0,
+                )
+            )
+
             fig.update_layout(
                 title="Feature Correlation Matrix",
-                height=700,
-                width=900,
+                height=800,
             )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Tab 3: Scatter Plot
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        # --------------------------------------------------------------------
+        # SCATTER
+        # --------------------------------------------------------------------
+
         with tab3:
-            st.subheader("Feature Comparison - Scatter Plot")
-            
+
+            st.subheader(
+                "Feature Comparison - Scatter Plot"
+            )
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                x_feature = st.selectbox("Select X-axis feature:", numeric_cols, key="x_scatter")
-            
+
+                x_feature = st.selectbox(
+                    "Select X-axis feature:",
+                    FEATURE_COLUMNS,
+                    key="x_scatter",
+                )
+
             with col2:
-                y_feature = st.selectbox("Select Y-axis feature:", numeric_cols, key="y_scatter")
-            
+
+                y_feature = st.selectbox(
+                    "Select Y-axis feature:",
+                    FEATURE_COLUMNS,
+                    key="y_scatter",
+                )
+
             fig = px.scatter(
                 data,
                 x=x_feature,
                 y=y_feature,
                 color="diagnosis",
-                color_discrete_map={"M": "#e74c3c", "B": "#27ae60"},
+                color_discrete_map={
+                    "M": "#e74c3c",
+                    "B": "#27ae60",
+                },
                 title=f"{x_feature} vs {y_feature}",
-                labels={"diagnosis": "Diagnosis Type"},
+                labels={
+                    "diagnosis": "Diagnosis"
+                },
                 height=500,
             )
-            
-            fig.update_traces(marker=dict(size=8, opacity=0.7))
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Tab 4: Feature Comparison
-        with tab4:
-            st.subheader("Top Features - Mean Comparison")
-            
-            # Calculate mean values for each diagnosis
-            feature_means = data.groupby("diagnosis")[numeric_cols].mean()
-            
-            # Calculate difference
-            mean_diff = feature_means.loc["M"] - feature_means.loc["B"]
-            top_features = mean_diff.abs().nlargest(10)
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Bar(
-                x=top_features.index,
-                y=mean_diff[top_features.index],
+
+            fig.update_traces(
                 marker=dict(
-                    color=mean_diff[top_features.index],
-                    colorscale="RdYlGn_r",
-                    showscale=True,
-                ),
-            ))
-            
+                    size=8,
+                    opacity=0.7
+                )
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        # --------------------------------------------------------------------
+        # FEATURE COMPARISON
+        # --------------------------------------------------------------------
+
+        with tab4:
+
+            st.subheader(
+                "Top Features - Mean Comparison"
+            )
+
+            feature_means = (
+                data
+                .groupby("diagnosis")[FEATURE_COLUMNS]
+                .mean()
+            )
+
+            mean_diff = (
+                feature_means.loc["M"]
+                - feature_means.loc["B"]
+            )
+
+            top_features = (
+                mean_diff
+                .abs()
+                .nlargest(10)
+            )
+
+            fig = go.Figure()
+
+            fig.add_trace(
+                go.Bar(
+                    x=top_features.index,
+                    y=mean_diff[
+                        top_features.index
+                    ],
+                    marker_color=[
+                        "#e74c3c"
+                        if value > 0
+                        else "#27ae60"
+                        for value in
+                        mean_diff[
+                            top_features.index
+                        ]
+                    ],
+                )
+            )
+
             fig.update_layout(
-                title="Top 10 Features - Mean Difference (Malignant vs Benign)",
+                title=(
+                    "Top 10 Features - "
+                    "Mean Difference "
+                    "(Malignant vs Benign)"
+                ),
                 xaxis_title="Features",
                 yaxis_title="Mean Difference",
                 height=500,
             )
-            st.plotly_chart(fig, use_container_width=True)
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
 
 # ============================================================================
-# PAGE: MODEL PREDICTION
+# MODEL PREDICTION
 # ============================================================================
+
 elif page == "🤖 Model Prediction":
+
     st.title("🤖 Model Prediction")
     st.markdown("---")
-    
-    # Load models and preprocessors
+
     models = load_models()
-    scaler, label_encoder = load_preprocessors()
+
+    scaler, imputer, label_encoder = (
+        load_preprocessors()
+    )
+
     data = load_data()
-    
-    if not models or scaler is None or label_encoder is None:
+
+    # ------------------------------------------------------------------------
+    # CHECK REQUIRED FILES
+    # ------------------------------------------------------------------------
+
+    if not models:
+
         st.error(
-            "❌ Models or preprocessors not found. Please run the following command:\n"
-            "`python train_model.py`"
+            """
+            ❌ No trained models were found.
+
+            Make sure the following files are present:
+
+            - svm_model.joblib
+            - random_forest_model.joblib
+            - logistic_regression_model.joblib
+            - xgboost_model.joblib
+            """
         )
+
+    elif (
+        scaler is None
+        or imputer is None
+        or label_encoder is None
+    ):
+
+        st.error(
+            """
+            ❌ Preprocessor files are missing.
+
+            Required files:
+
+            - scaler.joblib
+            - imputer.joblib
+            - label_encoder.joblib
+            """
+        )
+
     elif data is not None:
-        # Step-by-step instructions
-        with st.expander("📖 How to Use This Predictor", expanded=True):
-            st.markdown("""
-            ### Step-by-Step Guide:
-            
-            1. **Enter Measurements** - Input all 30 cellular measurements for the patient
-               - Values are pre-filled with dataset averages
-               - Adjust based on actual patient measurements
-               - Each field shows valid range (min-max from dataset)
-            
-            2. **Quick Options:**
-               - 🔄 **Clear Fields** - Reset all inputs to defaults
-               - 💾 **Use Sample Data** - Auto-fill with a sample malignant case
-               - 🔮 **Make Prediction** - Generate prediction
-            
-            3. **View Results:**
-               - Large colored card shows diagnosis (BENIGN ✅ or MALIGNANT ⚠️)
-               - Confidence percentage from the AI model
-               - Individual predictions from all 4 models
-            
-            4. **Interpret Results:**
-               - **Green Box** = BENIGN (Low risk)
-               - **Red Box** = MALIGNANT (High risk)
-               - **Confidence %** = Model certainty (higher is better)
-            """, help="Detailed instructions for using the prediction tool")
-        
-        st.info("💡 **Enter the patient's cellular measurements to predict diagnosis.**")
-        
-        # Get numeric features (excluding id and diagnosis)
-        numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
-        numeric_cols = [col for col in numeric_cols if col != "id"]
-        
-        # Create input form
-        st.subheader("📋 Patient Cellular Measurements")
-        
+
+        with st.expander(
+            "📖 How to Use This Predictor",
+            expanded=True,
+        ):
+
+            st.markdown(
+                """
+                ### Step-by-Step Guide
+
+                **1. Enter Measurements**
+
+                Enter the 30 cellular measurements.
+
+                **2. Use Sample Data**
+
+                You can automatically load a sample
+                malignant patient from the dataset.
+
+                **3. Make Prediction**
+
+                Click the prediction button.
+
+                **4. View Results**
+
+                The SVM model provides the primary
+                prediction and confidence score.
+
+                Other trained models are also shown
+                for comparison.
+
+                ⚠️ This application is for educational
+                and research purposes only.
+                """
+            )
+
+        st.info(
+            "💡 Enter the patient's cellular measurements "
+            "to predict the diagnosis."
+        )
+
+        # --------------------------------------------------------------------
+        # INPUT SECTION
+        # --------------------------------------------------------------------
+
+        st.subheader(
+            "📋 Patient Cellular Measurements"
+        )
+
         input_data = {}
-        
-        # Create columns for input fields
+
         cols = st.columns(3)
-        
-        for idx, feature in enumerate(numeric_cols):
+
+        for idx, feature in enumerate(
+            FEATURE_COLUMNS
+        ):
+
             col = cols[idx % 3]
-            
+
             with col:
-                # Get min, max, mean from data for better defaults
-                min_val = float(data[feature].min())
-                max_val = float(data[feature].max())
-                mean_val = float(data[feature].mean())
-                
+
+                min_val = float(
+                    data[feature].min()
+                )
+
+                max_val = float(
+                    data[feature].max()
+                )
+
+                mean_val = float(
+                    data[feature].mean()
+                )
+
                 input_data[feature] = st.number_input(
-                    f"{feature}",
+                    feature,
                     min_value=min_val,
                     max_value=max_val,
                     value=mean_val,
                     step=0.01,
-                    key=feature,
+                    key=f"input_{feature}",
                 )
-        
+
         st.markdown("---")
-        
-        # Prediction buttons
-        col1, col2, col3 = st.columns([1, 1, 1])
-        
+
+        # --------------------------------------------------------------------
+        # BUTTONS
+        # --------------------------------------------------------------------
+
+        col1, col2, col3 = st.columns(3)
+
+        # CLEAR
         with col1:
-            if st.button("🔄 Clear Fields", use_container_width=True, key="clear_btn"):
+
+            if st.button(
+                "🔄 Clear Fields",
+                use_container_width=True,
+            ):
+
                 st.session_state.predictions = {}
-                for feature in numeric_cols:
-                    if feature in st.session_state:
-                        del st.session_state[feature]
+
+                for feature in FEATURE_COLUMNS:
+
+                    key = f"input_{feature}"
+
+                    if key in st.session_state:
+                        del st.session_state[key]
+
                 st.rerun()
-        
+
+        # PREDICT
         with col2:
-            if st.button("🔮 Make Prediction", use_container_width=True, key="predict_btn"):
+
+            if st.button(
+                "🔮 Make Prediction",
+                use_container_width=True,
+            ):
+
                 try:
-                    # Prepare data for prediction
-                    feature_array = np.array([input_data[feature] for feature in numeric_cols]).reshape(1, -1)
-                    
-                    # Scale features
-                    feature_scaled = scaler.transform(feature_array)
-                    
-                    # Make predictions with best model (Random Forest typically)
-                    if "random_forest" in models:
-                        best_model = models["random_forest"]
-                        prediction = best_model.predict(feature_scaled)[0]
-                        confidence = max(best_model.predict_proba(feature_scaled)[0]) * 100
+
+                    # Create dataframe with exact
+                    # training feature order
+                    feature_df = pd.DataFrame(
+                        [
+                            [
+                                input_data[feature]
+                                for feature
+                                in FEATURE_COLUMNS
+                            ]
+                        ],
+                        columns=FEATURE_COLUMNS,
+                    )
+
+                    # Apply same preprocessing
+                    # used during training
+                    feature_imputed = (
+                        imputer.transform(
+                            feature_df
+                        )
+                    )
+
+                    feature_scaled = (
+                        scaler.transform(
+                            feature_imputed
+                        )
+                    )
+
+                    # --------------------------------------------------------
+                    # SVM = BEST MODEL
+                    # --------------------------------------------------------
+
+                    if "svm" in models:
+
+                        best_model = models["svm"]
+
                     else:
-                        # Use first available model
-                        best_model = next(iter(models.values()))
-                        prediction = best_model.predict(feature_scaled)[0]
-                        confidence = 85.0  # Default confidence
-                    
-                    # Store in session state (including feature_scaled for ensemble predictions)
+
+                        best_model = next(
+                            iter(models.values())
+                        )
+
+                    prediction = int(
+                        best_model.predict(
+                            feature_scaled
+                        )[0]
+                    )
+
+                    # Confidence
+                    if hasattr(
+                        best_model,
+                        "predict_proba"
+                    ):
+
+                        probabilities = (
+                            best_model
+                            .predict_proba(
+                                feature_scaled
+                            )[0]
+                        )
+
+                        confidence = (
+                            max(probabilities)
+                            * 100
+                        )
+
+                    else:
+
+                        confidence = 85.0
+
+                    # Save result
                     st.session_state.predictions = {
                         "diagnosis": prediction,
                         "confidence": confidence,
-                        "input_data": input_data,
-                        "feature_scaled": feature_scaled,
+                        "feature_scaled":
+                            feature_scaled,
                     }
-                
+
+                    st.success(
+                        "✅ Prediction generated successfully!"
+                    )
+
                 except Exception as e:
-                    st.error(f"❌ Error during prediction: {str(e)}")
-        
+
+                    st.error(
+                        f"❌ Error during prediction: {e}"
+                    )
+
+        # SAMPLE DATA
         with col3:
-            if st.button("💾 Use Sample Data", use_container_width=True, key="sample_btn"):
-                # Fill with a malignant sample from the dataset
-                malignant_sample = data[data["diagnosis"] == "M"].iloc[0]
-                for feature in numeric_cols:
-                    st.session_state[feature] = malignant_sample[feature]
+
+            if st.button(
+                "💾 Use Sample Data",
+                use_container_width=True,
+            ):
+
+                malignant_sample = (
+                    data[
+                        data["diagnosis"] == "M"
+                    ].iloc[0]
+                )
+
+                for feature in FEATURE_COLUMNS:
+
+                    st.session_state[
+                        f"input_{feature}"
+                    ] = float(
+                        malignant_sample[feature]
+                    )
+
                 st.rerun()
-        
-        # Display prediction result
+
+        # --------------------------------------------------------------------
+        # DISPLAY RESULT
+        # --------------------------------------------------------------------
+
         if st.session_state.predictions:
+
             st.markdown("---")
-            st.subheader("🎯 Prediction Result")
-            
-            diagnosis = st.session_state.predictions["diagnosis"]
-            confidence = st.session_state.predictions["confidence"]
-            
-            create_prediction_card(diagnosis, confidence)
-            
-            # Interpretation guide
-            st.markdown("""
-            ### 📊 What This Means:
-            """)
-            
-            if diagnosis == 1:  # Malignant
-                st.warning("""
-                ⚠️ **MALIGNANT Diagnosis Predicted**
-                
-                - The model predicts a **malignant** (cancerous) diagnosis
-                - Recommend immediate consultation with an oncologist
-                - Further diagnostic tests should be conducted
-                - This is a high-priority case
-                """)
-            else:  # Benign
-                st.success("""
-                ✅ **BENIGN Diagnosis Predicted**
-                
-                - The model predicts a **benign** (non-cancerous) diagnosis
-                - Lower risk of cancer
-                - Regular follow-up monitoring is still recommended
-                - Consult healthcare provider for confirmation
-                """)
-            
-            # Display confidence for all models
-            st.subheader("📊 Model Ensemble Predictions")
-            st.markdown("""
-            Below are predictions from all 4 trained models. Higher confidence and consistency indicates more reliable prediction.
-            """)
-            
-            try:
-                all_predictions = {}
-                feature_scaled = st.session_state.predictions.get("feature_scaled")
-                
-                if feature_scaled is not None:
-                    for model_name, model in models.items():
-                        pred_label = model.predict(feature_scaled)[0]
-                        pred_proba = max(model.predict_proba(feature_scaled)[0]) * 100
-                        all_predictions[model_name] = {
-                            "prediction": "Malignant" if pred_label == 1 else "Benign",
-                            "confidence": pred_proba,
-                        }
-                    
-                    pred_df = pd.DataFrame(all_predictions).T
-                    pred_df.columns = ["Prediction", "Confidence (%)"]
-                    st.dataframe(pred_df, use_container_width=True, hide_index=False)
-            
-            except Exception as e:
-                st.warning(f"⚠️ Could not display all model predictions: {str(e)}")
+
+            st.subheader(
+                "🎯 Prediction Result"
+            )
+
+            diagnosis = (
+                st.session_state
+                .predictions["diagnosis"]
+            )
+
+            confidence = (
+                st.session_state
+                .predictions["confidence"]
+            )
+
+            create_prediction_card(
+                diagnosis,
+                confidence
+            )
+
+            # ---------------------------------------------------------------
+            # INTERPRETATION
+            # ---------------------------------------------------------------
+
+            if diagnosis == 1:
+
+                st.warning(
+                    """
+                    ⚠️ **MALIGNANT Prediction**
+
+                    The model predicts a malignant
+                    classification for the entered
+                    measurements.
+
+                    This result is not a medical diagnosis.
+                    Please consult a qualified healthcare
+                    professional.
+                    """
+                )
+
+            else:
+
+                st.success(
+                    """
+                    ✅ **BENIGN Prediction**
+
+                    The model predicts a benign
+                    classification for the entered
+                    measurements.
+
+                    This result is not a medical diagnosis.
+                    Please consult a qualified healthcare
+                    professional for confirmation.
+                    """
+                )
+
+            # ---------------------------------------------------------------
+            # ALL MODEL PREDICTIONS
+            # ---------------------------------------------------------------
+
+            st.markdown("---")
+
+            st.subheader(
+                "📊 Model Comparison"
+            )
+
+            st.write(
+                "Predictions from all available trained models:"
+            )
+
+            feature_scaled = (
+                st.session_state
+                .predictions["feature_scaled"]
+            )
+
+            all_predictions = {}
+
+            for model_name, model in models.items():
+
+                try:
+
+                    pred_label = int(
+                        model.predict(
+                            feature_scaled
+                        )[0]
+                    )
+
+                    if hasattr(
+                        model,
+                        "predict_proba"
+                    ):
+
+                        probabilities = (
+                            model
+                            .predict_proba(
+                                feature_scaled
+                            )[0]
+                        )
+
+                        model_confidence = (
+                            max(probabilities)
+                            * 100
+                        )
+
+                    else:
+
+                        model_confidence = np.nan
+
+                    all_predictions[
+                        model_name
+                    ] = {
+                        "Prediction":
+                            (
+                                "Malignant"
+                                if pred_label == 1
+                                else "Benign"
+                            ),
+
+                        "Confidence (%)":
+                            (
+                                round(
+                                    model_confidence,
+                                    2
+                                )
+                                if not np.isnan(
+                                    model_confidence
+                                )
+                                else "N/A"
+                            ),
+                    }
+
+                except Exception as e:
+
+                    all_predictions[
+                        model_name
+                    ] = {
+                        "Prediction": "Error",
+                        "Confidence (%)": "N/A",
+                    }
+
+            pred_df = pd.DataFrame(
+                all_predictions
+            ).T
+
+            st.dataframe(
+                pred_df,
+                use_container_width=True
+            )
+
 
 # ============================================================================
-# PAGE: ABOUT PROJECT
+# ABOUT PROJECT
 # ============================================================================
+
 elif page == "ℹ️ About Project":
+
     st.title("ℹ️ About This Project")
     st.markdown("---")
-    
+
     st.markdown(
         """
         ## 🏥 Breast Cancer Diagnosis ML Project
-        
+
         ### 📋 Project Overview
-        This is a comprehensive machine learning project designed to predict breast cancer diagnosis
-        using cellular measurements. The project combines multiple advanced ML algorithms to provide
-        accurate predictions and help healthcare professionals in diagnostic decisions.
-        
+
+        This machine learning project predicts breast cancer
+        diagnosis using cellular measurements from the
+        Breast Cancer Wisconsin Diagnostic dataset.
+
+        The application uses multiple machine learning
+        classification algorithms and provides an interactive
+        Streamlit interface.
+
+        ---
+
         ### 📊 Dataset Information
-        - **Source:** Breast Cancer Wisconsin (Diagnostic) Dataset
-        - **Total Records:** 569 patients
-        - **Features:** 30 numeric features derived from cell nuclei measurements
-        - **Target Variable:** Diagnosis (Benign or Malignant)
-        
+
+        - **Dataset:** Breast Cancer Wisconsin Diagnostic Dataset
+        - **Total Records:** 569
+        - **Input Features:** 30
+        - **Target:** Diagnosis
+        - **Classes:** Benign (B) and Malignant (M)
+
+        ---
+
         ### 🤖 Models Implemented
-        
-        #### 1. **Random Forest Classifier**
-        - Ensemble method combining multiple decision trees
-        - Excellent for handling non-linear relationships
-        - Typical Accuracy: ~97%
-        
-        #### 2. **Support Vector Machine (SVM)**
-        - Powerful for binary classification
-        - Effective in high-dimensional spaces
-        - Typical Accuracy: ~96%
-        
-        #### 3. **Logistic Regression**
-        - Linear classification model
-        - Interpretable and efficient
-        - Typical Accuracy: ~95%
-        
-        #### 4. **XGBoost Classifier**
-        - Gradient boosting approach
-        - State-of-the-art performance
-        - Typical Accuracy: ~97%
-        
-        ### 🔧 Features & Measurements
-        For each cell nucleus, the following measurements are calculated:
-        - **Radius** (mean distance from center to perimeter)
-        - **Texture** (standard deviation of gray-scale values)
-        - **Perimeter** (boundary length)
-        - **Area** (cell nucleus area)
-        - **Smoothness** (local variation in radius)
-        - **Compactness** (perimeter² / area - 1.0)
-        - **Concavity** (severity of concave portions)
-        - **Concave Points** (number of concave portions)
-        - **Symmetry** (measurement symmetry)
-        - **Fractal Dimension** (coastline approximation)
-        
+
+        #### 1. Support Vector Machine (SVM)
+
+        The primary prediction model.
+
+        **Test Accuracy: 98.25%**
+
+        #### 2. Logistic Regression
+
+        A linear classification algorithm.
+
+        **Test Accuracy: 97.37%**
+
+        #### 3. Random Forest
+
+        An ensemble tree-based classification algorithm.
+
+        **Test Accuracy: 95.61%**
+
+        #### 4. XGBoost
+
+        A gradient boosting classification algorithm.
+
+        **Test Accuracy: 95.61%**
+
+        ---
+
+        ### 🔧 Input Features
+
+        The model uses 30 cellular measurements:
+
+        - Radius Mean
+        - Texture Mean
+        - Perimeter Mean
+        - Area Mean
+        - Smoothness Mean
+        - Compactness Mean
+        - Concavity Mean
+        - Concave Points Mean
+        - Symmetry Mean
+        - Fractal Dimension Mean
+        - Radius SE
+        - Texture SE
+        - Perimeter SE
+        - Area SE
+        - Smoothness SE
+        - Compactness SE
+        - Concavity SE
+        - Concave Points SE
+        - Symmetry SE
+        - Fractal Dimension SE
+        - Radius Worst
+        - Texture Worst
+        - Perimeter Worst
+        - Area Worst
+        - Smoothness Worst
+        - Compactness Worst
+        - Concavity Worst
+        - Concave Points Worst
+        - Symmetry Worst
+        - Fractal Dimension Worst
+
+        ---
+
         ### 🎯 Prediction Process
-        1. **Data Collection:** Patient cellular measurements are collected
-        2. **Preprocessing:** Features are scaled using StandardScaler
-        3. **Prediction:** Multiple models make independent predictions
-        4. **Ensemble:** Results are combined for reliable diagnosis
-        5. **Output:** Prediction with confidence percentage
-        
-        ### 📈 Model Performance
-        - **Training Set:** 80% of data (455 records)
-        - **Test Set:** 20% of data (114 records)
-        - **Average Accuracy:** 96.5%
-        - **Validation:** Cross-validation and confusion matrices
-        
+
+        1. User enters cellular measurements.
+        2. Missing values are handled using the trained imputer.
+        3. Features are standardized using the trained scaler.
+        4. SVM generates the primary prediction.
+        5. Other trained models generate comparison predictions.
+        6. Results and confidence scores are displayed.
+
+        ---
+
         ### 🛠️ Technology Stack
-        - **Python:** Programming language
-        - **Pandas & NumPy:** Data manipulation and analysis
-        - **Scikit-learn:** ML algorithms and preprocessing
-        - **XGBoost:** Gradient boosting
-        - **Streamlit:** Web application framework
-        - **Plotly:** Interactive visualizations
-        
+
+        - Python
+        - Pandas
+        - NumPy
+        - Scikit-learn
+        - XGBoost
+        - Joblib
+        - Streamlit
+        - Plotly
+
+        ---
+
         ### ⚠️ Important Disclaimer
-        This application is designed for educational and research purposes. 
-        **It should NOT be used as a sole diagnostic tool in clinical settings.**
-        Always consult qualified healthcare professionals for medical diagnoses.
-        
+
+        This application is intended for educational and
+        research purposes only.
+
+        **It should NOT be used as a standalone medical
+        diagnostic tool.**
+
+        Always consult a qualified healthcare professional
+        for medical diagnosis and treatment decisions.
+
+        ---
+
         ### 📚 References
-        - [Breast Cancer Wisconsin Dataset](https://archive.ics.uci.edu/ml/datasets/breast+cancer+wisconsin+(diagnostic))
-        - [Scikit-learn Documentation](https://scikit-learn.org/)
-        - [Streamlit Documentation](https://docs.streamlit.io/)
-        
-        ### 👨‍💻 Developer Notes
-        - All models are trained with consistent random seeds for reproducibility
-        - Data preprocessing ensures all features are on similar scales
-        - Cross-validation prevents overfitting
-        - Interactive visualizations help in understanding data patterns
+
+        - Breast Cancer Wisconsin Diagnostic Dataset
+        - Scikit-learn
+        - Streamlit
+        - XGBoost
+
         """
     )
-    
+
     st.markdown("---")
-    st.info("💡 For more information or to contribute, visit the project repository.")
+
+    st.info(
+        "💡 This project demonstrates machine learning "
+        "classification, preprocessing, model evaluation, "
+        "and Streamlit deployment."
+    )
+
